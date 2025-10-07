@@ -1,0 +1,58 @@
+---
+alwaysApply: true
+---
+
+## 🗃️ Database Conventions
+
+### Multi-Tenancy
+- Every tenant-scoped table must include a `tenant_id` column of type `UUID`.
+- Global tables (e.g., `tenants`, `users`) do not contain `tenant_id`.
+
+### Table Naming
+- Use plural and snake_case:
+  - ✅ `user_tenants`
+  - ✅ `payment_methods`
+  - ❌ `UserTenant`, `paymentMethod`
+
+### Primary Keys
+- All tables use UUID as the primary key (`id UUID PRIMARY KEY`).
+
+### Foreign Keys & Relationships
+- Foreign key columns follow the pattern: `{table_name}_id` (singular table name + `_id`).
+  - Example in `user_tenants`:
+    - `user_id` → references `users(id)`
+    - `tenant_id` → references `tenants(id)`
+
+### Core Multi-Tenant Tables
+| Table           | Purpose |
+|-----------------|--------|
+| `tenants`       | Stores tenant metadata |
+| `users`         | Global user accounts (not tenant-scoped) |
+| `user_tenants`  | Many-to-many join: links users to tenants (includes `user_id`, `tenant_id`) |
+
+### JSON Field Naming (API Layer)
+- Use camelCase for all JSON keys in requests/responses:
+  ```json
+  {
+    "id": "a1b2c3...",
+    "tenantId": "x9y8z7...",
+    "email": "user@example.com",
+    "createdAt": "2024-01-01T00:00:00Z"
+  }
+
+### Project Structure
+.
+├── cmd/
+│   └── app/                 # Main entrypoint (`main.go`)
+├── internal/
+│   ├── users/               # Bounded context: user domain
+│   ├── tenants/             # Bounded context: tenant domain
+│   └── pkg/                 # Shared internal utilities (optional)
+└── pkg/                     # Public, reusable packages (rarely used)
+
+internal/users/
+├── model.go        # Domain models (with JSON tags)
+├── repository.go   # Data access layer (DB queries)
+├── service.go      # Business logic
+└── handler.go      # HTTP request/response handlers
+---

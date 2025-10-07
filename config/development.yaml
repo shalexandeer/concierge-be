@@ -6,9 +6,9 @@ server:
 database:
   host: "localhost"
   port: "3306"
-  user: "gin_boilerplate"
-  password: "gin_boilerplate"
-  dbname: "gin_boilerplate"
+  user: "root"
+  password: ""
+  dbname: "concierge_be"
 
 jwt:
   secret: "dev-secret-key-for-development"

@@ -4,18 +4,18 @@ import (
 	"errors"
 	"time"
 
-	"gin-boilerplate/config"
+	"concierge-be/config"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type Claims struct {
-	UserID   uint   `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
 // GenerateToken 生成 JWT Token
-func GenerateToken(userID uint, username string) (string, error) {
+func GenerateToken(userID string, username string) (string, error) {
 	expireTime := time.Duration(config.AppConfig.JWT.ExpireTime) * time.Hour
 	claims := Claims{
 		UserID:   userID,

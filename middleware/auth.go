@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"gin-boilerplate/utils"
+	"concierge-be/utils"
 	"github.com/gin-gonic/gin"
 )
 

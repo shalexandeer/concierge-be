@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 
-	"gin-boilerplate/config"
-	"gin-boilerplate/database"
-	"gin-boilerplate/models"
-	"gin-boilerplate/router"
-	"gin-boilerplate/utils"
+	"concierge-be/config"
+	"concierge-be/database"
+	"concierge-be/internal/users"
+	"concierge-be/router"
+	"concierge-be/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,7 +31,7 @@ func main() {
 	database.InitDB()
 
 	// 自动迁移数据库表
-	if err := database.GetDB().AutoMigrate(&models.User{}); err != nil {
+	if err := database.GetDB().AutoMigrate(&users.User{}, &users.UserTenant{}, &users.Tenant{}); err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
 

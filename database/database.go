@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"gin-boilerplate/config"
+	"concierge-be/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

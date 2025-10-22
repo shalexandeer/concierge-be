@@ -5,6 +5,8 @@ import (
 	"concierge-be/internal/amenities_categories"
 	"concierge-be/internal/facilities"
 	"concierge-be/internal/roles"
+	"concierge-be/internal/services"
+	"concierge-be/internal/services_categories"
 	"concierge-be/internal/tenants"
 	"concierge-be/internal/users"
 	"concierge-be/middleware"
@@ -151,6 +153,44 @@ func SetupRouter() *gin.Engine {
 		tenantBookingRoutes.Use(middleware.RequireTenantAdmin())
 		{
 			tenantBookingRoutes.GET("/:tenantId", facilitiesHandler.GetBookingsByTenant)
+		}
+
+		// Service Categories routes (public GET, protected POST/PUT/DELETE)
+		serviceCategoriesHandler := services_categories.NewHandler()
+		serviceCategoriesRoutes := v1.Group("/services-categories")
+		{
+			// Public routes (no authentication required)
+			serviceCategoriesRoutes.GET("", serviceCategoriesHandler.GetAllServiceCategories)
+			serviceCategoriesRoutes.GET("/:id", serviceCategoriesHandler.GetServiceCategory)
+		}
+
+		// Service Categories management routes (protected by super_admin + tenant_admin)
+		serviceCategoriesManagementRoutes := v1.Group("/services-categories")
+		serviceCategoriesManagementRoutes.Use(middleware.ExtractUserInfo())
+		serviceCategoriesManagementRoutes.Use(middleware.RequireTenantAdmin())
+		{
+			serviceCategoriesManagementRoutes.POST("", serviceCategoriesHandler.CreateServiceCategory)
+			serviceCategoriesManagementRoutes.PUT("/:id", serviceCategoriesHandler.UpdateServiceCategory)
+			serviceCategoriesManagementRoutes.DELETE("/:id", serviceCategoriesHandler.DeleteServiceCategory)
+		}
+
+		// Services routes (public GET, protected POST/PUT/DELETE)
+		servicesHandler := services.NewHandler()
+		servicesRoutes := v1.Group("/services")
+		{
+			// Public routes (no authentication required)
+			servicesRoutes.GET("", servicesHandler.GetAllServices)
+			servicesRoutes.GET("/:id", servicesHandler.GetService)
+		}
+
+		// Services management routes (protected by super_admin + tenant_admin)
+		servicesManagementRoutes := v1.Group("/services")
+		servicesManagementRoutes.Use(middleware.ExtractUserInfo())
+		servicesManagementRoutes.Use(middleware.RequireTenantAdmin())
+		{
+			servicesManagementRoutes.POST("", servicesHandler.CreateService)
+			servicesManagementRoutes.PUT("/:id", servicesHandler.UpdateService)
+			servicesManagementRoutes.DELETE("/:id", servicesHandler.DeleteService)
 		}
 	}
 

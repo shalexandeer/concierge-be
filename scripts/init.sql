@@ -3,21 +3,65 @@ CREATE DATABASE IF NOT EXISTS `gin_boilerplate` DEFAULT CHARACTER SET utf8mb4 CO
 
 USE `gin_boilerplate`;
 
+-- 角色表
+CREATE TABLE IF NOT EXISTS `roles` (
+    `id` VARCHAR(36) NOT NULL COMMENT '角色ID',
+    `name` VARCHAR(50) NOT NULL COMMENT '角色名称',
+    `description` VARCHAR(255) DEFAULT NULL COMMENT '角色描述',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_name` (`name`),
+    KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色表';
+
+-- 插入默认角色
+INSERT INTO `roles` (`id`, `name`, `description`) VALUES
+    (UUID(), 'super_admin', 'Super administrator with full access to all tenants and features'),
+    (UUID(), 'tenant_admin', 'Tenant administrator with management access within their tenant'),
+    (UUID(), 'user', 'Regular user with view and booking access');
+
 -- 用户表
 CREATE TABLE IF NOT EXISTS `users` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '用户ID',
+    `id` VARCHAR(36) NOT NULL COMMENT '用户ID',
     `username` VARCHAR(50) NOT NULL COMMENT '用户名',
     `email` VARCHAR(100) NOT NULL COMMENT '邮箱',
     `password` VARCHAR(255) NOT NULL COMMENT '密码（加密后）',
     `full_name` VARCHAR(100) DEFAULT NULL COMMENT '全名',
+    `role_id` VARCHAR(36) DEFAULT NULL COMMENT '角色ID',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `idx_username` (`username`),
     UNIQUE KEY `idx_email` (`email`),
+    KEY `idx_role_id` (`role_id`),
     KEY `idx_deleted_at` (`deleted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+
+-- 为现有用户分配默认角色（如果表已存在且有数据）
+-- 首先检查是否有现有用户没有角色
+SET @user_role_id = (SELECT id FROM roles WHERE name = 'user' LIMIT 1);
+UPDATE users SET role_id = @user_role_id WHERE role_id IS NULL;
+
+-- 现在添加外键约束（如果不存在）
+SET @constraint_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.table_constraints 
+    WHERE constraint_schema = DATABASE() 
+    AND table_name = 'users' 
+    AND constraint_name = 'fk_users_role'
+);
+
+SET @sql = IF(@constraint_exists = 0, 
+    'ALTER TABLE `users` ADD CONSTRAINT `fk_users_role` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`)',
+    'SELECT "Foreign key constraint already exists" as message'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 插入示例数据（可选）
 -- INSERT INTO `users` (`username`, `email`, `password`, `full_name`)

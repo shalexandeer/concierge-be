@@ -46,12 +46,20 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
+	// Get default role (user)
+	defaultRole, err := h.service.GetDefaultRole()
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to get default role")
+		return
+	}
+
 	// Create user
 	user := &User{
 		Username: req.Username,
 		Email:    req.Email,
 		Password: req.Password,
 		FullName: req.FullName,
+		RoleID:   defaultRole.ID,
 	}
 
 	if err := h.service.CreateUser(user); err != nil {
@@ -87,8 +95,28 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	// Generate token
-	token, err := utils.GenerateToken(user.ID, user.Username)
+	// Get user with role information
+	userWithRole, err := h.service.GetUserWithRole(user.ID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "failed to get user role")
+		return
+	}
+
+	// Get user's tenant ID (if any)
+	tenantID := ""
+	userTenants, err := h.service.GetUserTenants(user.ID)
+	if err == nil && len(userTenants) > 0 {
+		tenantID = userTenants[0].TenantID
+	}
+
+	// Generate token with role information
+	token, err := utils.GenerateTokenWithRole(
+		user.ID, 
+		user.Username, 
+		userWithRole.Role.ID, 
+		userWithRole.Role.Name, 
+		tenantID,
+	)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "failed to generate token")
 		return
@@ -110,7 +138,8 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.GetUserByID(userID.(string))
+	// Try to get user with role using the GetUserWithRole method
+	user, err := h.service.GetUserWithRole(userID.(string))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, err.Error())
 		return

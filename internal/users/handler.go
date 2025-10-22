@@ -20,15 +20,59 @@ func NewHandler() *Handler {
 
 // CreateUser creates a new user
 func (h *Handler) CreateUser(c *gin.Context) {
-	var user User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var req CreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request data")
 		return
 	}
 
-	if err := h.service.CreateUser(&user); err != nil {
+	// Get the current user's role for validation
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	currentUser, err := h.service.GetUserWithRole(currentUserID.(string))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to get current user")
+		return
+	}
+
+	// Create user with role validation
+	username := req.Username
+	if username == "" {
+		username = req.Email // Use email as username if not provided
+	}
+	
+	user := User{
+		Username: username,
+		Email:    req.Email,
+		Password: req.Password,
+		FullName: req.FullName,
+		RoleID:   req.RoleID,
+	}
+
+	if err := h.service.CreateUserWithRole(&user, currentUser.Role.Name); err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
+	}
+
+	// If tenant IDs are provided, assign user to tenants
+	if len(req.TenantIDs) > 0 {
+		// Get the role name from the role ID
+		role, err := h.service.GetRoleByID(user.RoleID)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to get role information: "+err.Error())
+			return
+		}
+
+		for _, tenantID := range req.TenantIDs {
+			if err := h.service.AddUserToTenant(user.ID, tenantID, role.Name); err != nil {
+				utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to assign user to tenant: "+err.Error())
+				return
+			}
+		}
 	}
 
 	// Clear password from response

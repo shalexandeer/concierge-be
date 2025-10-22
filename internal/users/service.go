@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
+	"concierge-be/internal/roles"
 )
 
 type Service struct {
@@ -38,6 +39,57 @@ func (s *Service) CreateUser(user *User) error {
 	user.Password = string(hashedPassword)
 
 	return s.repo.CreateUser(user)
+}
+
+// CreateUserWithRole creates a user with role validation
+func (s *Service) CreateUserWithRole(user *User, assignerRole string) error {
+	// If no role specified, assign default user role
+	if user.RoleID == "" {
+		userRole, err := s.repo.GetRoleByName("user")
+		if err != nil {
+			return fmt.Errorf("failed to get default user role: %v", err)
+		}
+		user.RoleID = userRole.ID
+	}
+
+	// Get the role being assigned
+	role, err := s.repo.GetRoleByID(user.RoleID)
+	if err != nil {
+		return fmt.Errorf("invalid role: %v", err)
+	}
+
+	// Validate role assignment
+	if assignerRole != "" {
+		if !CanManageRole(assignerRole, role.Name) {
+			return fmt.Errorf("role %s cannot assign role %s", assignerRole, role.Name)
+		}
+	}
+
+	// Generate UUID if not set
+	if user.ID == "" {
+		user.ID = generateUUID()
+	}
+	
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	user.Password = string(hashedPassword)
+
+	return s.repo.CreateUser(user)
+}
+
+// AssignDefaultRoleToUsersWithoutRole assigns the default 'user' role to users who don't have a role
+func (s *Service) AssignDefaultRoleToUsersWithoutRole() error {
+	// Get the default user role
+	userRole, err := s.repo.GetRoleByName("user")
+	if err != nil {
+		return fmt.Errorf("failed to get default user role: %v", err)
+	}
+
+	// Update all users without a role
+	return s.repo.AssignDefaultRoleToUsersWithoutRole(userRole.ID)
 }
 
 func (s *Service) GetUserByID(id string) (*User, error) {
@@ -77,6 +129,41 @@ func (s *Service) VerifyPassword(user *User, password string) bool {
 	return err == nil
 }
 
+// GetUserWithRole gets a user with role information
+func (s *Service) GetUserWithRole(id string) (*User, error) {
+	return s.repo.GetUserWithRole(id)
+}
+
+// GetDefaultRole gets the default role for new users
+func (s *Service) GetDefaultRole() (*roles.Role, error) {
+	return s.repo.GetDefaultRole()
+}
+
+// GetUserTenants gets all tenants for a user
+func (s *Service) GetUserTenants(userID string) ([]UserTenant, error) {
+	return s.repo.GetUserTenants(userID)
+}
+
+// CanManageRole checks if a role can manage another role
+func CanManageRole(managerRole, targetRole string) bool {
+	// Define role hierarchy
+	roleHierarchy := map[string]int{
+		"super_admin":  3,
+		"tenant_admin": 2,
+		"user":         1,
+	}
+
+	managerLevel, managerExists := roleHierarchy[managerRole]
+	targetLevel, targetExists := roleHierarchy[targetRole]
+
+	if !managerExists || !targetExists {
+		return false
+	}
+
+	// Can only manage roles with lower hierarchy level
+	return managerLevel > targetLevel
+}
+
 // UserTenant service methods
 func (s *Service) AddUserToTenant(userID, tenantID, role string) error {
 	userTenant := &UserTenant{
@@ -86,10 +173,6 @@ func (s *Service) AddUserToTenant(userID, tenantID, role string) error {
 		Role:     role,
 	}
 	return s.repo.CreateUserTenant(userTenant)
-}
-
-func (s *Service) GetUserTenants(userID string) ([]UserTenant, error) {
-	return s.repo.GetUserTenants(userID)
 }
 
 func (s *Service) GetTenantUsers(tenantID string) ([]UserTenant, error) {
@@ -160,4 +243,24 @@ func (s *Service) GetUserRoleInTenant(userID, tenantID string) (string, error) {
 		return "", err
 	}
 	return userTenant.Role, nil
+}
+
+// GetRoleByID gets a role by ID
+func (s *Service) GetRoleByID(roleID string) (*roles.Role, error) {
+	return s.repo.GetRoleByID(roleID)
+}
+
+// GetUserTenantIDs gets all tenant IDs for a user
+func (s *Service) GetUserTenantIDs(userID string) ([]string, error) {
+	userTenants, err := s.repo.GetUserTenants(userID)
+	if err != nil {
+		return nil, err
+	}
+	
+	var tenantIDs []string
+	for _, userTenant := range userTenants {
+		tenantIDs = append(tenantIDs, userTenant.TenantID)
+	}
+	
+	return tenantIDs, nil
 }

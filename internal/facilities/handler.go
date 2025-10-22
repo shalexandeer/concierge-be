@@ -3,7 +3,7 @@ package facilities
 import (
 	"net/http"
 	"strconv"
-
+	"concierge-be/internal/users"
 	"concierge-be/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -59,7 +59,23 @@ func (h *Handler) GetFacility(c *gin.Context) {
 }
 
 // GetAllFacilities gets all facilities with pagination
+// Automatically filters by user's tenants (except for super admin)
 func (h *Handler) GetAllFacilities(c *gin.Context) {
+	// Get current user ID from JWT context
+	userID, exists := c.Get("user_id")
+	if !exists {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	// Get current user with role information
+	userService := users.NewService()
+	currentUser, err := userService.GetUserWithRole(userID.(string))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to get user information")
+		return
+	}
+
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
@@ -70,9 +86,34 @@ func (h *Handler) GetAllFacilities(c *gin.Context) {
 		pageSize = 10
 	}
 
-	facilities, total, err := h.service.GetAllFacilities(page, pageSize)
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+	var facilities []FacilityResponse
+	var total int64
+	var err2 error
+
+	// Check if user is super admin - if so, return all data
+	if currentUser.Role.Name == "super_admin" {
+		// Super admin can see all facilities
+		facilities, total, err2 = h.service.GetAllFacilities(page, pageSize)
+	} else {
+		// Non-super admin users: filter by their tenants
+		userTenantIDs, err := userService.GetUserTenantIDs(userID.(string))
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to get user tenants")
+			return
+		}
+
+		if len(userTenantIDs) == 0 {
+			// User has no tenants, return empty array
+			facilities = []FacilityResponse{}
+			total = 0
+		} else {
+			// Filter by user's tenants
+			facilities, total, err2 = h.service.GetFacilitiesByTenantIDs(userTenantIDs, page, pageSize)
+		}
+	}
+
+	if err2 != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, err2.Error())
 		return
 	}
 

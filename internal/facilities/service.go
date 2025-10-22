@@ -294,3 +294,23 @@ func (s *Service) convertFacilityToResponse(facility *Facility) (*FacilityRespon
 
 	return response, nil
 }
+
+// GetFacilitiesByTenantIDs gets facilities by multiple tenant IDs with pagination
+func (s *Service) GetFacilitiesByTenantIDs(tenantIDs []string, page, pageSize int) ([]FacilityResponse, int64, error) {
+	facilities, total, err := s.repo.GetFacilitiesByTenantIDs(tenantIDs, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Convert to FacilityResponse
+	var responses []FacilityResponse
+	for _, facility := range facilities {
+		response, err := s.convertFacilityToResponse(&facility)
+		if err != nil {
+			return nil, 0, err
+		}
+		responses = append(responses, *response)
+	}
+
+	return responses, total, nil
+}

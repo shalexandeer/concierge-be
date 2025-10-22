@@ -9,8 +9,11 @@ import (
 )
 
 type Claims struct {
-	UserID   string `json:"user_id"`
+	UserID   string `json:"userId"`
 	Username string `json:"username"`
+	RoleID   string `json:"roleId"`
+	RoleName string `json:"roleName"`
+	TenantID string `json:"tenantId"`
 	jwt.RegisteredClaims
 }
 
@@ -20,6 +23,26 @@ func GenerateToken(userID string, username string) (string, error) {
 	claims := Claims{
 		UserID:   userID,
 		Username: username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireTime)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(config.AppConfig.JWT.Secret))
+}
+
+// GenerateTokenWithRole 生成包含角色信息的 JWT Token
+func GenerateTokenWithRole(userID string, username string, roleID string, roleName string, tenantID string) (string, error) {
+	expireTime := time.Duration(config.AppConfig.JWT.ExpireTime) * time.Hour
+	claims := Claims{
+		UserID:   userID,
+		Username: username,
+		RoleID:   roleID,
+		RoleName: roleName,
+		TenantID: tenantID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireTime)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -46,4 +69,9 @@ func ParseToken(tokenString string) (*Claims, error) {
 	}
 
 	return nil, errors.New("invalid token")
+}
+
+// ParseJWT is an alias for ParseToken for consistency with middleware
+func ParseJWT(tokenString string) (*Claims, error) {
+	return ParseToken(tokenString)
 }

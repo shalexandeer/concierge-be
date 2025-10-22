@@ -124,3 +124,24 @@ func (r *Repository) UpdateStock(id string, quantity int) error {
 	return r.db.Model(&Amenity{}).Where("id = ?", id).Update("stock", quantity).Error
 }
 
+// GetAmenitiesByTenantIDs gets amenities by multiple tenant IDs
+func (r *Repository) GetAmenitiesByTenantIDs(tenantIDs []string) ([]Amenity, error) {
+	var amenities []Amenity
+	err := r.db.Preload("Category").Where("tenant_id IN ?", tenantIDs).Order("item_name ASC").Find(&amenities).Error
+	return amenities, err
+}
+
+// GetAmenitiesByCategoryIDAndTenantIDs gets amenities by category ID and tenant IDs
+func (r *Repository) GetAmenitiesByCategoryIDAndTenantIDs(categoryID string, tenantIDs []string) ([]Amenity, error) {
+	var amenities []Amenity
+	err := r.db.Preload("Category").Where("category_id = ? AND tenant_id IN ?", categoryID, tenantIDs).Order("item_name ASC").Find(&amenities).Error
+	return amenities, err
+}
+
+// GetLowStockAmenitiesByTenantIDs gets low stock amenities by tenant IDs
+func (r *Repository) GetLowStockAmenitiesByTenantIDs(tenantIDs []string) ([]Amenity, error) {
+	var amenities []Amenity
+	err := r.db.Preload("Category").Where("tenant_id IN ? AND stock <= minimum_stock", tenantIDs).Order("item_name ASC").Find(&amenities).Error
+	return amenities, err
+}
+

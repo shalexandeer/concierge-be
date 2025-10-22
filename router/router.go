@@ -4,6 +4,7 @@ import (
 	"concierge-be/internal/amenities"
 	"concierge-be/internal/amenities_categories"
 	"concierge-be/internal/facilities"
+	"concierge-be/internal/roles"
 	"concierge-be/internal/tenants"
 	"concierge-be/internal/users"
 	"concierge-be/middleware"
@@ -36,14 +37,25 @@ func SetupRouter() *gin.Engine {
 			authRoutes.POST("/login", userHandler.Login)
 		}
 
-		// User routes
+		// User routes (protected by super admin role)
 		userRoutes := v1.Group("/users")
+		userRoutes.Use(middleware.JWTAuth())
 		{
 			userRoutes.POST("", userHandler.CreateUser)
 			userRoutes.GET("/:id", userHandler.GetUser)
 			userRoutes.GET("", userHandler.GetAllUsers)
 			userRoutes.PUT("/:id", userHandler.UpdateUser)
 			userRoutes.DELETE("/:id", userHandler.DeleteUser)
+		}
+
+		// Roles routes (protected by super admin role)
+		roleHandler := roles.NewHandler()
+		roleRoutes := v1.Group("/roles")
+		roleRoutes.Use(middleware.ExtractUserInfo())
+		roleRoutes.Use(middleware.RequireSuperAdmin())
+		{
+			roleRoutes.GET("", roleHandler.GetAllRoles)
+			roleRoutes.GET("/:id", roleHandler.GetRole)
 		}
 
 		// Authenticated routes
@@ -55,9 +67,11 @@ func SetupRouter() *gin.Engine {
 			authenticated.PUT("/me", userHandler.UpdateCurrentUser)
 		}
 
-		// Tenant routes
+		// Tenant routes (protected by super admin role)
 		tenantHandler := tenants.NewHandler()
 		tenantRoutes := v1.Group("/tenants")
+		tenantRoutes.Use(middleware.ExtractUserInfo())
+		tenantRoutes.Use(middleware.RequireSuperAdmin())
 		{
 			tenantRoutes.POST("", tenantHandler.CreateTenant)
 			tenantRoutes.GET("/:id", tenantHandler.GetTenant)
@@ -86,9 +100,10 @@ func SetupRouter() *gin.Engine {
 			categoriesRoutes.DELETE("/:id", categoriesHandler.DeleteCategory)
 		}
 
-		// Amenities routes
+		// Amenities routes (protected by authentication)
 		amenitiesHandler := amenities.NewHandler()
 		amenitiesRoutes := v1.Group("/amenities")
+		amenitiesRoutes.Use(middleware.JWTAuth())
 		{
 			amenitiesRoutes.POST("", amenitiesHandler.CreateAmenity)
 			amenitiesRoutes.GET("/:id", amenitiesHandler.GetAmenity)
@@ -98,20 +113,30 @@ func SetupRouter() *gin.Engine {
 			amenitiesRoutes.DELETE("/:id", amenitiesHandler.DeleteAmenity)
 		}
 
-		// Facilities routes
+		// Public facilities routes (protected by authentication)
 		facilitiesHandler := facilities.NewHandler()
-		facilitiesRoutes := v1.Group("/facilities")
+		publicFacilitiesRoutes := v1.Group("/facilities")
+		publicFacilitiesRoutes.Use(middleware.JWTAuth())
 		{
-			facilitiesRoutes.POST("", facilitiesHandler.CreateFacility)
-			facilitiesRoutes.GET("/:id", facilitiesHandler.GetFacility)
-			facilitiesRoutes.GET("", facilitiesHandler.GetAllFacilities)
-			facilitiesRoutes.PUT("/:id", facilitiesHandler.UpdateFacility)
-			facilitiesRoutes.DELETE("/:id", facilitiesHandler.DeleteFacility)
-			facilitiesRoutes.GET("/tenant/:tenantId", facilitiesHandler.GetFacilitiesByTenant)
+			publicFacilitiesRoutes.GET("/:id", facilitiesHandler.GetFacility)
+			publicFacilitiesRoutes.GET("", facilitiesHandler.GetAllFacilities)
+			publicFacilitiesRoutes.GET("/tenant/:tenantId", facilitiesHandler.GetFacilitiesByTenant)
 		}
 
-		// Facility Bookings routes
+		// Facilities management routes (protected by tenant admin role)
+		facilitiesManagementRoutes := v1.Group("/facilities")
+		facilitiesManagementRoutes.Use(middleware.ExtractUserInfo())
+		facilitiesManagementRoutes.Use(middleware.RequireTenantAdmin())
+		{
+			facilitiesManagementRoutes.POST("", facilitiesHandler.CreateFacility)
+			facilitiesManagementRoutes.PUT("/:id", facilitiesHandler.UpdateFacility)
+			facilitiesManagementRoutes.DELETE("/:id", facilitiesHandler.DeleteFacility)
+		}
+
+		// Facility Bookings routes (accessible to all authenticated users)
 		bookingRoutes := v1.Group("/facilities/:id/bookings")
+		bookingRoutes.Use(middleware.ExtractUserInfo())
+		bookingRoutes.Use(middleware.RequireUser())
 		{
 			bookingRoutes.POST("", facilitiesHandler.CreateBooking)
 			bookingRoutes.GET("", facilitiesHandler.GetFacilityBookings)
@@ -120,8 +145,10 @@ func SetupRouter() *gin.Engine {
 			bookingRoutes.DELETE("/:bookingId", facilitiesHandler.DeleteBooking)
 		}
 
-		// Tenant Bookings routes
+		// Tenant Bookings routes (protected by tenant admin role)
 		tenantBookingRoutes := v1.Group("/tenant-bookings")
+		tenantBookingRoutes.Use(middleware.ExtractUserInfo())
+		tenantBookingRoutes.Use(middleware.RequireTenantAdmin())
 		{
 			tenantBookingRoutes.GET("/:tenantId", facilitiesHandler.GetBookingsByTenant)
 		}

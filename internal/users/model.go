@@ -2,9 +2,10 @@ package users
 
 import (
 	"time"
-
+	"concierge-be/internal/roles"
 	"gorm.io/gorm"
 )
+
 
 // User represents a global user account (not tenant-scoped)
 type User struct {
@@ -13,9 +14,13 @@ type User struct {
 	Email     string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"email"`
 	Password  string    `gorm:"type:varchar(255);not null" json:"-"`
 	FullName  string    `gorm:"type:varchar(100)" json:"fullName"`
+	RoleID    string    `gorm:"type:varchar(36)" json:"roleId"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// Relationships
+	Role roles.Role `gorm:"foreignKey:RoleID;references:ID" json:"role,omitempty"`
 }
 
 func (User) TableName() string {
@@ -55,4 +60,14 @@ type Tenant struct {
 
 func (Tenant) TableName() string {
 	return "tenants"
+}
+
+// CreateUserRequest represents the request payload for creating a user
+type CreateUserRequest struct {
+	Username  string   `json:"username"` // Optional, will use email if not provided
+	Email     string   `json:"email" binding:"required,email"`
+	Password  string   `json:"password" binding:"required,min=6"`
+	FullName  string   `json:"fullName" binding:"required"`
+	RoleID    string   `json:"roleId" binding:"required"`
+	TenantIDs []string `json:"tenantIds"`
 }

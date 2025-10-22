@@ -3,6 +3,7 @@ package users
 import (
 	"errors"
 	"concierge-be/database"
+	"concierge-be/internal/roles"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +24,7 @@ func (r *Repository) CreateUser(user *User) error {
 
 func (r *Repository) GetUserByID(id string) (*User, error) {
 	var user User
-	err := r.db.First(&user, "id = ?", id).Error
+	err := r.db.Preload("Role").First(&user, "id = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("user not found")
@@ -35,7 +36,7 @@ func (r *Repository) GetUserByID(id string) (*User, error) {
 
 func (r *Repository) GetUserByUsername(username string) (*User, error) {
 	var user User
-	err := r.db.Where("username = ?", username).First(&user).Error
+	err := r.db.Preload("Role").Where("username = ?", username).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("user not found")
@@ -47,7 +48,7 @@ func (r *Repository) GetUserByUsername(username string) (*User, error) {
 
 func (r *Repository) GetUserByEmail(email string) (*User, error) {
 	var user User
-	err := r.db.Where("email = ?", email).First(&user).Error
+	err := r.db.Preload("Role").Where("email = ?", email).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("user not found")
@@ -66,9 +67,9 @@ func (r *Repository) GetAllUsers(page, pageSize int) ([]User, int64, error) {
 	// Get total count
 	db.Count(&total)
 
-	// Paginated query
+	// Paginated query with role preloading
 	offset := (page - 1) * pageSize
-	err := db.Offset(offset).Limit(pageSize).Find(&users).Error
+	err := db.Preload("Role").Offset(offset).Limit(pageSize).Find(&users).Error
 
 	return users, total, err
 }
@@ -79,6 +80,65 @@ func (r *Repository) UpdateUser(user *User) error {
 
 func (r *Repository) DeleteUser(id string) error {
 	return r.db.Delete(&User{}, "id = ?", id).Error
+}
+
+// GetUserWithRole gets a user with role information
+func (r *Repository) GetUserWithRole(id string) (*User, error) {
+	var user User
+	err := r.db.First(&user, "id = ?", id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+	
+	// Manually fetch the role if RoleID is set
+	if user.RoleID != "" {
+		var role roles.Role
+		err := r.db.Unscoped().Table("roles").Where("id = ?", user.RoleID).First(&role).Error
+		if err == nil {
+			user.Role = role
+		}
+	}
+	
+	return &user, nil
+}
+
+// AssignDefaultRoleToUsersWithoutRole assigns the default role to users who don't have a role
+func (r *Repository) AssignDefaultRoleToUsersWithoutRole(roleID string) error {
+	return r.db.Model(&User{}).Where("role_id IS NULL OR role_id = ''").Update("role_id", roleID).Error
+}
+
+// GetRoleByName gets a role by name
+func (r *Repository) GetRoleByName(name string) (*roles.Role, error) {
+	var role roles.Role
+	err := r.db.Where("name = ?", name).First(&role).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("role not found")
+		}
+		return nil, err
+	}
+	return &role, nil
+}
+
+// GetDefaultRole gets the default role (user role)
+func (r *Repository) GetDefaultRole() (*roles.Role, error) {
+	return r.GetRoleByName("user")
+}
+
+// GetRoleByID gets a role by ID
+func (r *Repository) GetRoleByID(id string) (*roles.Role, error) {
+	var role roles.Role
+	err := r.db.First(&role, "id = ?", id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("role not found")
+		}
+		return nil, err
+	}
+	return &role, nil
 }
 
 // UserTenant repository methods

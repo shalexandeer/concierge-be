@@ -1,6 +1,7 @@
 package amenities
 
 import (
+	"concierge-be/internal/users"
 	"concierge-be/utils"
 	"net/http"
 	"strconv"
@@ -58,27 +59,68 @@ func (h *Handler) GetAmenity(c *gin.Context) {
 
 // GetAllAmenities handles GET /api/v1/amenities
 // Supports filtering by tenantId, categoryId, and lowStock query parameters
+// Automatically filters by user's tenants (except for super admin)
 func (h *Handler) GetAllAmenities(c *gin.Context) {
+	// Get current user ID from JWT context
+	userID, exists := c.Get("user_id")
+	if !exists {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	// Get current user with role information
+	userService := users.NewService()
+	currentUser, err := userService.GetUserWithRole(userID.(string))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to get user information")
+		return
+	}
+
 	tenantID := c.Query("tenantId")
 	categoryID := c.Query("categoryId")
 	lowStock := c.Query("lowStock")
 
 	var amenities []Amenity
-	var err error
+	var err2 error
 
-	// Priority: lowStock > categoryId > tenantId > all
-	if lowStock == "true" && tenantID != "" {
-		amenities, err = h.service.GetLowStockAmenities(tenantID)
-	} else if categoryID != "" {
-		amenities, err = h.service.GetAmenitiesByCategoryID(categoryID)
-	} else if tenantID != "" {
-		amenities, err = h.service.GetAmenitiesByTenantID(tenantID)
+	// Check if user is super admin - if so, return all data
+	if currentUser.Role.Name == "super_admin" {
+		// Super admin can see all amenities
+		if lowStock == "true" && tenantID != "" {
+			amenities, err2 = h.service.GetLowStockAmenities(tenantID)
+		} else if categoryID != "" {
+			amenities, err2 = h.service.GetAmenitiesByCategoryID(categoryID)
+		} else if tenantID != "" {
+			amenities, err2 = h.service.GetAmenitiesByTenantID(tenantID)
+		} else {
+			amenities, err2 = h.service.GetAllAmenities()
+		}
 	} else {
-		amenities, err = h.service.GetAllAmenities()
+		// Non-super admin users: filter by their tenants
+		userTenantIDs, err := userService.GetUserTenantIDs(userID.(string))
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to get user tenants")
+			return
+		}
+
+		if len(userTenantIDs) == 0 {
+			// User has no tenants, return empty array
+			amenities = []Amenity{}
+		} else {
+			// Filter by user's tenants
+			if lowStock == "true" {
+				// For low stock, check all user's tenants
+				amenities, err2 = h.service.GetLowStockAmenitiesByTenantIDs(userTenantIDs)
+			} else if categoryID != "" {
+				amenities, err2 = h.service.GetAmenitiesByCategoryIDAndTenantIDs(categoryID, userTenantIDs)
+			} else {
+				amenities, err2 = h.service.GetAmenitiesByTenantIDs(userTenantIDs)
+			}
+		}
 	}
 
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+	if err2 != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, err2.Error())
 		return
 	}
 

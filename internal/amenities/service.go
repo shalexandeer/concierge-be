@@ -159,3 +159,18 @@ func (s *Service) DeleteAmenity(id string) error {
 	return nil
 }
 
+// GetAmenitiesByTenantIDs gets amenities by multiple tenant IDs
+func (s *Service) GetAmenitiesByTenantIDs(tenantIDs []string) ([]Amenity, error) {
+	return s.repo.GetAmenitiesByTenantIDs(tenantIDs)
+}
+
+// GetAmenitiesByCategoryIDAndTenantIDs gets amenities by category ID and tenant IDs
+func (s *Service) GetAmenitiesByCategoryIDAndTenantIDs(categoryID string, tenantIDs []string) ([]Amenity, error) {
+	return s.repo.GetAmenitiesByCategoryIDAndTenantIDs(categoryID, tenantIDs)
+}
+
+// GetLowStockAmenitiesByTenantIDs gets low stock amenities by tenant IDs
+func (s *Service) GetLowStockAmenitiesByTenantIDs(tenantIDs []string) ([]Amenity, error) {
+	return s.repo.GetLowStockAmenitiesByTenantIDs(tenantIDs)
+}
+

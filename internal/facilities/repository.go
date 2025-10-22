@@ -193,3 +193,28 @@ func (r *Repository) GetBookingsByTenantID(tenantID string, page, pageSize int) 
 
 	return bookings, total, nil
 }
+
+// GetFacilitiesByTenantIDs gets facilities by multiple tenant IDs with pagination
+func (r *Repository) GetFacilitiesByTenantIDs(tenantIDs []string, page, pageSize int) ([]Facility, int64, error) {
+	var facilities []Facility
+	var total int64
+
+	// Count total facilities for these tenants
+	err := r.db.Model(&Facility{}).Where("tenant_id IN ?", tenantIDs).Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get facilities with pagination
+	offset := (page - 1) * pageSize
+	err = r.db.Where("tenant_id IN ?", tenantIDs).
+		Order("facility_name ASC").
+		Offset(offset).
+		Limit(pageSize).
+		Find(&facilities).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return facilities, total, nil
+}

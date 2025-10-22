@@ -88,3 +88,42 @@ CREATE TABLE IF NOT EXISTS `amenities` (
     FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`category_id`) REFERENCES `amenities_categories`(`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设施表';
+
+-- 酒店设施表 (tenant-scoped)
+CREATE TABLE IF NOT EXISTS `facilities` (
+    `id` VARCHAR(36) NOT NULL COMMENT '设施ID',
+    `tenant_id` VARCHAR(36) NOT NULL COMMENT '租户ID',
+    `facility_name` VARCHAR(100) NOT NULL COMMENT '设施名称',
+    `capacity` INT NOT NULL COMMENT '容量',
+    `rate_per_hour` DECIMAL(10,2) NOT NULL COMMENT '每小时费率',
+    `status` VARCHAR(20) NOT NULL DEFAULT 'available' COMMENT '状态',
+    `equipment` JSON COMMENT '设备列表',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_tenant_id` (`tenant_id`),
+    KEY `idx_deleted_at` (`deleted_at`),
+    FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='酒店设施表';
+
+-- 设施预订表
+CREATE TABLE IF NOT EXISTS `facility_bookings` (
+    `id` VARCHAR(36) NOT NULL COMMENT '预订ID',
+    `tenant_id` VARCHAR(36) NOT NULL COMMENT '租户ID',
+    `facility_id` VARCHAR(36) NOT NULL COMMENT '设施ID',
+    `guest_name` VARCHAR(100) NOT NULL COMMENT '客人姓名',
+    `start_date_time` DATETIME NOT NULL COMMENT '开始时间',
+    `end_date_time` DATETIME NOT NULL COMMENT '结束时间',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_tenant_id` (`tenant_id`),
+    KEY `idx_facility_id` (`facility_id`),
+    KEY `idx_start_date_time` (`start_date_time`),
+    KEY `idx_end_date_time` (`end_date_time`),
+    KEY `idx_deleted_at` (`deleted_at`),
+    FOREIGN KEY (`facility_id`) REFERENCES `facilities`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设施预订表';

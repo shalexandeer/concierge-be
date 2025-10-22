@@ -7,6 +7,10 @@ import (
 
 	"concierge-be/config"
 	"concierge-be/database"
+	"concierge-be/internal/amenities"
+	"concierge-be/internal/amenities_categories"
+	"concierge-be/internal/facilities"
+	"concierge-be/internal/tenants"
 	"concierge-be/internal/users"
 	"concierge-be/router"
 	"concierge-be/utils"
@@ -31,7 +35,15 @@ func main() {
 	database.InitDB()
 
 	// 自动迁移数据库表
-	if err := database.GetDB().AutoMigrate(&users.User{}, &users.UserTenant{}, &users.Tenant{}); err != nil {
+	if err := database.GetDB().AutoMigrate(
+		&users.User{}, 
+		&users.UserTenant{}, 
+		&tenants.Tenant{},
+		&amenities_categories.AmenityCategory{},
+		&amenities.Amenity{},
+		&facilities.Facility{},
+		&facilities.Booking{},
+	); err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
 

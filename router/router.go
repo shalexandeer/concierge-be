@@ -3,6 +3,7 @@ package router
 import (
 	"concierge-be/internal/amenities"
 	"concierge-be/internal/amenities_categories"
+	"concierge-be/internal/facilities"
 	"concierge-be/internal/tenants"
 	"concierge-be/internal/users"
 	"concierge-be/middleware"
@@ -95,6 +96,34 @@ func SetupRouter() *gin.Engine {
 			amenitiesRoutes.PUT("/:id", amenitiesHandler.UpdateAmenity)
 			amenitiesRoutes.PATCH("/:id/stock", amenitiesHandler.UpdateStock)
 			amenitiesRoutes.DELETE("/:id", amenitiesHandler.DeleteAmenity)
+		}
+
+		// Facilities routes
+		facilitiesHandler := facilities.NewHandler()
+		facilitiesRoutes := v1.Group("/facilities")
+		{
+			facilitiesRoutes.POST("", facilitiesHandler.CreateFacility)
+			facilitiesRoutes.GET("/:id", facilitiesHandler.GetFacility)
+			facilitiesRoutes.GET("", facilitiesHandler.GetAllFacilities)
+			facilitiesRoutes.PUT("/:id", facilitiesHandler.UpdateFacility)
+			facilitiesRoutes.DELETE("/:id", facilitiesHandler.DeleteFacility)
+			facilitiesRoutes.GET("/tenant/:tenantId", facilitiesHandler.GetFacilitiesByTenant)
+		}
+
+		// Facility Bookings routes
+		bookingRoutes := v1.Group("/facilities/:id/bookings")
+		{
+			bookingRoutes.POST("", facilitiesHandler.CreateBooking)
+			bookingRoutes.GET("", facilitiesHandler.GetFacilityBookings)
+			bookingRoutes.GET("/upcoming", facilitiesHandler.GetUpcomingBookings)
+			bookingRoutes.GET("/:bookingId", facilitiesHandler.GetBooking)
+			bookingRoutes.DELETE("/:bookingId", facilitiesHandler.DeleteBooking)
+		}
+
+		// Tenant Bookings routes
+		tenantBookingRoutes := v1.Group("/tenant-bookings")
+		{
+			tenantBookingRoutes.GET("/:tenantId", facilitiesHandler.GetBookingsByTenant)
 		}
 	}
 

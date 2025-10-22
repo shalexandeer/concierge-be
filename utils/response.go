@@ -24,6 +24,11 @@ type Pagination struct {
 	TotalPage int   `json:"total_page"`
 }
 
+type PaginatedData struct {
+	Data       interface{} `json:"data"`
+	Pagination Pagination  `json:"pagination"`
+}
+
 func SuccessResponse(c *gin.Context, data interface{}) {
 	c.JSON(200, Response{
 		Code:    200,
@@ -51,5 +56,23 @@ func SuccessResponseWithPagination(c *gin.Context, data interface{}, page, pageS
 			Total:     int64(total),
 			TotalPage: totalPage,
 		},
+	})
+}
+
+func SuccessResponseWithNestedPagination(c *gin.Context, data interface{}, page, pageSize, total int) {
+	totalPage := (total + pageSize - 1) / pageSize
+	paginatedData := PaginatedData{
+		Data: data,
+		Pagination: Pagination{
+			Page:      page,
+			PageSize:  pageSize,
+			Total:     int64(total),
+			TotalPage: totalPage,
+		},
+	}
+	c.JSON(200, Response{
+		Code:    200,
+		Message: "Success",
+		Data:    paginatedData,
 	})
 }

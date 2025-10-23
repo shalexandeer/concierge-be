@@ -4,10 +4,13 @@ import (
 	"concierge-be/internal/amenities"
 	"concierge-be/internal/amenities_categories"
 	"concierge-be/internal/facilities"
+	"concierge-be/internal/food_beverages"
+	"concierge-be/internal/food_beverages_categories"
 	"concierge-be/internal/roles"
 	"concierge-be/internal/services"
 	"concierge-be/internal/services_categories"
 	"concierge-be/internal/tenants"
+	"concierge-be/internal/upload"
 	"concierge-be/internal/users"
 	"concierge-be/middleware"
 	"github.com/gin-gonic/gin"
@@ -192,6 +195,56 @@ func SetupRouter() *gin.Engine {
 			servicesManagementRoutes.PUT("/:id", servicesHandler.UpdateService)
 			servicesManagementRoutes.DELETE("/:id", servicesHandler.DeleteService)
 		}
+
+		// Food & Beverage Categories routes (public GET, protected POST/PUT/DELETE)
+		fbCategoriesHandler := food_beverages_categories.NewHandler()
+		fbCategoriesRoutes := v1.Group("/food-beverages-categories")
+		{
+			// Public routes (no authentication required)
+			fbCategoriesRoutes.GET("", fbCategoriesHandler.GetAllCategories)
+			fbCategoriesRoutes.GET("/:id", fbCategoriesHandler.GetCategory)
+		}
+
+		// Food & Beverage Categories management routes (protected by super_admin + tenant_admin)
+		fbCategoriesManagementRoutes := v1.Group("/food-beverages-categories")
+		fbCategoriesManagementRoutes.Use(middleware.ExtractUserInfo())
+		fbCategoriesManagementRoutes.Use(middleware.RequireTenantAdmin())
+		{
+			fbCategoriesManagementRoutes.POST("", fbCategoriesHandler.CreateCategory)
+			fbCategoriesManagementRoutes.PUT("/:id", fbCategoriesHandler.UpdateCategory)
+			fbCategoriesManagementRoutes.DELETE("/:id", fbCategoriesHandler.DeleteCategory)
+		}
+
+		// Food & Beverage Items routes (public GET, protected POST/PUT/DELETE)
+		fbItemsHandler := food_beverages.NewHandler()
+		fbItemsRoutes := v1.Group("/food-beverages")
+		{
+			// Public routes (no authentication required)
+			fbItemsRoutes.GET("", fbItemsHandler.GetAllFoodBeverages)
+			fbItemsRoutes.GET("/:id", fbItemsHandler.GetFoodBeverage)
+		}
+
+		// Food & Beverage Items management routes (protected by super_admin + tenant_admin)
+		fbItemsManagementRoutes := v1.Group("/food-beverages")
+		fbItemsManagementRoutes.Use(middleware.ExtractUserInfo())
+		fbItemsManagementRoutes.Use(middleware.RequireTenantAdmin())
+		{
+			fbItemsManagementRoutes.POST("", fbItemsHandler.CreateFoodBeverage)
+			fbItemsManagementRoutes.PUT("/:id", fbItemsHandler.UpdateFoodBeverage)
+			fbItemsManagementRoutes.DELETE("/:id", fbItemsHandler.DeleteFoodBeverage)
+		}
+
+		// Upload routes (protected by authentication)
+		uploadHandler := upload.NewHandler()
+		uploadRoutes := v1.Group("/uploads")
+		uploadRoutes.Use(middleware.JWTAuth())
+		{
+			uploadRoutes.POST("/images", uploadHandler.UploadImage)
+			uploadRoutes.DELETE("/images/:filename", uploadHandler.DeleteImage)
+		}
+
+		// Public image serving route (no authentication required)
+		v1.GET("/uploads/images/:filename", uploadHandler.ServeImage)
 	}
 
 	return r

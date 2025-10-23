@@ -24,6 +24,7 @@ type Facility struct {
 	RatePerHour  float64       `gorm:"type:decimal(10,2);not null" json:"ratePerHour"`
 	Status       string        `gorm:"type:varchar(20);default:'available'" json:"status"`
 	Equipment    string `gorm:"type:json" json:"equipment"`
+	ImagePath    string        `gorm:"type:varchar(500)" json:"imagePath"`
 	CreatedAt    time.Time     `json:"createdAt"`
 	UpdatedAt    time.Time     `json:"updatedAt"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
@@ -63,6 +64,7 @@ type CreateFacilityRequest struct {
 	Capacity     int           `json:"capacity" binding:"required,min=1"`
 	RatePerHour  float64       `json:"ratePerHour" binding:"required,min=0"`
 	Equipment    EquipmentList `json:"equipment"`
+	ImagePath    string        `json:"imagePath"`
 }
 
 // UpdateFacilityRequest represents the request body for updating a facility
@@ -71,6 +73,7 @@ type UpdateFacilityRequest struct {
 	Capacity     *int           `json:"capacity"`
 	RatePerHour  *float64       `json:"ratePerHour"`
 	Equipment    *EquipmentList `json:"equipment"`
+	ImagePath    string         `json:"imagePath"`
 }
 
 // CreateBookingRequest represents the request body for creating a booking
@@ -98,6 +101,7 @@ type FacilityResponse struct {
 	RatePerHour  float64       `json:"ratePerHour"`
 	Status       string        `json:"status"`
 	Equipment    EquipmentList `json:"equipment"`
+	ImagePath    string        `json:"imagePath"`
 	CreatedAt    time.Time     `json:"createdAt"`
 	UpdatedAt    time.Time     `json:"updatedAt"`
 	Bookings     []Booking     `json:"bookings,omitempty"`

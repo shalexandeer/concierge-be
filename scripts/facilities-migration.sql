@@ -7,6 +7,7 @@ CREATE TABLE facilities (
   rate_per_hour DECIMAL(10,2) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'available',
   equipment JSONB,
+  image_path VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP,

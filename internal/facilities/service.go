@@ -51,6 +51,7 @@ func (s *Service) CreateFacility(req *CreateFacilityRequest) (*FacilityResponse,
 		RatePerHour:  req.RatePerHour,
 		Status:       "available",
 		Equipment:    string(equipmentJSON),
+		ImagePath:    req.ImagePath,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -140,6 +141,9 @@ func (s *Service) UpdateFacility(id string, req *UpdateFacilityRequest) (*Facili
 			return nil, fmt.Errorf("failed to marshal equipment: %v", err)
 		}
 		facility.Equipment = string(equipmentJSON)
+	}
+	if req.ImagePath != "" {
+		facility.ImagePath = req.ImagePath
 	}
 
 	facility.UpdatedAt = time.Now()
@@ -287,6 +291,7 @@ func (s *Service) convertFacilityToResponse(facility *Facility) (*FacilityRespon
 		RatePerHour:  facility.RatePerHour,
 		Status:       facility.Status,
 		Equipment:    equipment,
+		ImagePath:    facility.ImagePath,
 		CreatedAt:    facility.CreatedAt,
 		UpdatedAt:    facility.UpdatedAt,
 		Bookings:     facility.Bookings,
